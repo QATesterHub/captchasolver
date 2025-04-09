@@ -30,16 +30,11 @@ def run_bot(excel_path):
     driver = webdriver.Chrome()
     driver.maximize_window()
 
-    count = 0
     for i in range(2, sh.max_row + 1):
-        if count == 7:
-            break
-
         try:
             data = [sh[f'{col}{i}'].value for col in 'ABCDE']
             if not all(data):
-                sh[f'F{i}'] = '❌ Missing data'
-                continue
+                break  # Stop processing if any data is missing
 
             url, title, desc, name, email = data
             driver.get("https://ebay-dir.com/submit?c=51&LINK_TYPE=1")
@@ -65,7 +60,6 @@ def run_bot(excel_path):
             sh[f'F{i}'] = '✅ Posted'
             sh[f'G{i}'] = link.group() if link else 'No link'
 
-            count += 1
         except Exception as e:
             sh[f'F{i}'] = '❌ Failed'
 
