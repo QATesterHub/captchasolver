@@ -1,4 +1,4 @@
-import os, re, time
+import os, re, time, random
 from flask import Flask, request, render_template, send_file
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,19 +10,10 @@ RESULT_FOLDER = 'results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULT_FOLDER, exist_ok=True)
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        file = request.files['file']
-        if not file:
-            return "No file uploaded."
-        path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(path)
-
-        result_file = run_bot(path)
-        return send_file(result_file, as_attachment=True)
-
-    return render_template('index.html')
+def human_type(element, text):
+    for char in text:
+        element.send_keys(char)
+        time.sleep(random.uniform(0.05, 0.15))  # Simulate human typing
 
 def run_bot(excel_path):
     wb = load_workbook(excel_path)
@@ -32,34 +23,36 @@ def run_bot(excel_path):
 
     for i in range(2, sh.max_row + 1):
         try:
-            data = [sh[f'{col}{i}'].value for col in 'ABCDE']
-            if not all(data):
-                break  # Stop processing if any data is missing
+            url, title, desc, name, email = [sh[f'{col}{i}'].value for col in 'ABCDE']
+            if not all([url, title, desc, name, email]):
+                sh[f'F{i}'] = '❌ Missing data'
+                continue
 
-            url, title, desc, name, email = data
-            driver.get("https://ebay-dir.com/submit?c=51&LINK_TYPE=1")
+            driver.get(url)
+            time.sleep(random.uniform(2, 3))
 
-            driver.find_element(By.ID, 'TITLE').send_keys(title)
-            driver.find_element(By.ID, 'URL').send_keys(url)
-            driver.find_element(By.ID, 'DESCRIPTION').send_keys(desc)
-            driver.find_element(By.ID, 'OWNER_NAME').send_keys(name)
-            driver.find_element(By.ID, 'OWNER_EMAIL').send_keys(email)
+            human_type(driver.find_element(By.ID, 'TITLE'), title)
+            human_type(driver.find_element(By.ID, 'URL'), url)
+            human_type(driver.find_element(By.ID, 'DESCRIPTION'), desc)
+            human_type(driver.find_element(By.ID, 'OWNER_NAME'), name)
+            human_type(driver.find_element(By.ID, 'OWNER_EMAIL'), email)
 
-            for f in driver.find_elements(By.TAG_NAME, 'font'):
-                if '=' in f.text:
-                    expr = f.text.replace('x', '*').replace('=', '')
-                    driver.find_element(By.ID, "DO_MATH").send_keys(str(eval(expr)))
+            for font in driver.find_elements(By.TAG_NAME, 'font'):
+                if '=' in font.text:
+                    expr = font.text.replace('x', '*').replace('=', '')
+                    result = str(eval(expr))
+                    human_type(driver.find_element(By.ID, 'DO_MATH'), result)
                     break
 
-            driver.find_element(By.XPATH, "//input[@id='AGREERULES']").click()
+            driver.find_element(By.ID, 'AGREERULES').click()
+            time.sleep(1)
             driver.find_element(By.NAME, 'continue').click()
-            time.sleep(2)
+            time.sleep(3)
 
             body = driver.find_element(By.TAG_NAME, 'body').text
             link = re.search(r'https?://\S+\.html', body)
             sh[f'F{i}'] = '✅ Posted'
             sh[f'G{i}'] = link.group() if link else 'No link'
-
         except Exception as e:
             sh[f'F{i}'] = '❌ Failed'
 
@@ -68,6 +61,27 @@ def run_bot(excel_path):
     wb.save(result_path)
     return result_path
 
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file:
+            return "No file uploaded."
+
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
+        result = run_bot(filepath)
+        return send_file(result, as_attachment=True)
+
+    return '''
+        <h2>Upload Excel File for Ad Posting</h2>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="file" required>
+            <input type="submit" value="Start Posting">
+        </form>
+    '''
+
+# ✅ PORT-compatible main block
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # Use Render's PORT or default to 5000
+    port = int(os.environ.get("PORT", 5000))  # Use Render’s PORT or default to 5000
     app.run(host='0.0.0.0', port=port)
