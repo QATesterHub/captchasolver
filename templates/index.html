@@ -1,70 +1,46 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ad Posting Bot</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding-top: 50px;
-        }
-        h1 {
-            font-size: 2.5rem;
-        }
-        #progressContainer {
-            width: 80%;
-            background-color: #f1f1f1;
-            margin: 20px auto;
-            border-radius: 25px;
-            height: 30px;
-            overflow: hidden;
-        }
-        #progressBar {
-            height: 100%;
-            width: 0%;
-            background-color: #4CAF50;
-            text-align: center;
-            line-height: 30px;
-            color: white;
-            border-radius: 25px;
-            transition: width 0.4s ease-in-out;
-        }
-        .upload-form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        input[type="submit"], input[type="file"] {
-            font-size: 1rem;
-        }
-    </style>
+    <title>Ad Poster Bot</title>
 </head>
 <body>
-    <h1>📤 Upload Excel to Post Ads</h1>
-    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data" onsubmit="startProgress();">
+    <h1>📄 Upload Excel to Start Bot</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
         <input type="file" name="file" required>
-        <input type="submit" value="Upload & Start">
+        <button type="submit">Upload</button>
     </form>
 
-    <div id="progressContainer">
-        <div id="progressBar">0%</div>
-    </div>
+    <h2 id="status">⏳ Waiting...</h2>
 
     <script>
-        function startProgress() {
-            let progressBar = document.getElementById("progressBar");
-            let width = 0;
-            let interval = setInterval(() => {
-                if (width >= 100) {
-                    clearInterval(interval);
-                } else {
-                    width += 2;
-                    progressBar.style.width = width + "%";
-                    progressBar.innerHTML = width + "%";
+        const form = document.getElementById('uploadForm');
+        const status = document.getElementById('status');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            status.innerText = '🚀 Uploading and starting bot...';
+
+            const res = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const json = await res.json();
+            status.innerText = json.message;
+
+            // Start polling for progress
+            const poll = setInterval(async () => {
+                const response = await fetch('/progress');
+                const progressData = await response.json();
+                status.innerText = `Progress: ${progressData.current}/${progressData.total} - ${progressData.status}`;
+                if (progressData.status === 'Completed') {
+                    clearInterval(poll);
+                    status.innerText += "\n✅ Done. You can download the file.";
                 }
-            }, 300); // Adjust speed as needed
-        }
+            }, 2000);
+        });
     </script>
 </body>
 </html>
