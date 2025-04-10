@@ -1,46 +1,11 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Ad Poster Bot</title>
-</head>
+<head><title>Ad Bot</title></head>
 <body>
-    <h1>📄 Upload Excel to Start Bot</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <button type="submit">Upload</button>
-    </form>
-
-    <h2 id="status">⏳ Waiting...</h2>
-
-    <script>
-        const form = document.getElementById('uploadForm');
-        const status = document.getElementById('status');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            status.innerText = '🚀 Uploading and starting bot...';
-
-            const res = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const json = await res.json();
-            status.innerText = json.message;
-
-            // Start polling for progress
-            const poll = setInterval(async () => {
-                const response = await fetch('/progress');
-                const progressData = await response.json();
-                status.innerText = `Progress: ${progressData.current}/${progressData.total} - ${progressData.status}`;
-                if (progressData.status === 'Completed') {
-                    clearInterval(poll);
-                    status.innerText += "\n✅ Done. You can download the file.";
-                }
-            }, 2000);
-        });
-    </script>
+  <h2>Upload Excel File</h2>
+  <form method="post" enctype="multipart/form-data" action="/upload">
+    <input type="file" name="file" required>
+    <button type="submit">Start Bot</button>
+  </form>
 </body>
 </html>
