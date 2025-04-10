@@ -1,60 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Ad Posting Bot</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 30px;
+            text-align: center;
+            padding-top: 50px;
         }
-        .progress-container {
-            margin-top: 20px;
-            width: 100%;
-            background-color: #f3f3f3;
-            border-radius: 10px;
+        h1 {
+            font-size: 2.5rem;
+        }
+        #progressContainer {
+            width: 80%;
+            background-color: #f1f1f1;
+            margin: 20px auto;
+            border-radius: 25px;
+            height: 30px;
             overflow: hidden;
         }
-        .progress-bar {
+        #progressBar {
+            height: 100%;
             width: 0%;
-            height: 25px;
-            background-color: #4caf50;
+            background-color: #4CAF50;
             text-align: center;
+            line-height: 30px;
             color: white;
-            line-height: 25px;
+            border-radius: 25px;
+            transition: width 0.4s ease-in-out;
+        }
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        input[type="submit"], input[type="file"] {
+            font-size: 1rem;
         }
     </style>
 </head>
 <body>
     <h1>📤 Upload Excel to Post Ads</h1>
-    <form method="post" enctype="multipart/form-data">
+    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data" onsubmit="startProgress();">
         <input type="file" name="file" required>
-        <button type="submit">Upload & Start</button>
+        <input type="submit" value="Upload & Start">
     </form>
 
-    <div class="progress-container">
-        <div id="progressBar" class="progress-bar">0%</div>
+    <div id="progressContainer">
+        <div id="progressBar">0%</div>
     </div>
 
     <script>
-        const progressBar = document.getElementById('progressBar');
-        let progress = 0;
-
-        function pollProgress() {
-            fetch('/progress')
-                .then(res => res.json())
-                .then(data => {
-                    progress = data.progress;
-                    progressBar.style.width = progress + '%';
-                    progressBar.textContent = progress + '%';
-                    if (progress < 100) {
-                        setTimeout(pollProgress, 1000);
-                    }
-                });
+        function startProgress() {
+            let progressBar = document.getElementById("progressBar");
+            let width = 0;
+            let interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                } else {
+                    width += 2;
+                    progressBar.style.width = width + "%";
+                    progressBar.innerHTML = width + "%";
+                }
+            }, 300); // Adjust speed as needed
         }
-
-        // Start polling as soon as page loads
-        window.onload = pollProgress;
     </script>
 </body>
 </html>
