@@ -1,32 +1,32 @@
 import os, re, time
-from flask import Flask, request, render_template, send_file, jsonify
+from flask import Flask, request, render_template, send_file
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from openpyxl import load_workbook
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
-RESULT_FOLDER = 'results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    if request.method == 'POST':
+        file = request.files['file']
+        if not file:
+            return "No file uploaded."
+
+        path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(path)
+
+        run_bot(path)
+        return send_file(path, as_attachment=True)
+
     return render_template('index.html')
 
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    file = request.files['file']
-    if not file:
-        return "No file uploaded."
-    path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(path)
-
-    result_file = run_bot(path)
-    return send_file(result_file, as_attachment=True)
-
+def slow_type(element, text):
+    for char in text:
+        element.send_keys(char)
+        time.sleep(0.05)
 
 def run_bot(excel_path):
     wb = load_workbook(excel_path)
@@ -36,28 +36,31 @@ def run_bot(excel_path):
 
     for i in range(2, sh.max_row + 1):
         try:
-            data = [sh[f'{col}{i}'].value for col in 'ABCDE']
-            if not all(data):
+            url, title, desc, name, email = [sh[f'{col}{i}'].value for col in 'ABCDE']
+            if not all([url, title, desc, name, email]):
                 sh[f'F{i}'] = '❌ Missing data'
                 continue
 
-            url, title, desc, name, email = data
+            # Use hardcoded URL always
             driver.get("https://ebay-dir.com/submit?c=51&LINK_TYPE=1")
-
             time.sleep(2)
-            driver.find_element(By.ID, 'TITLE').send_keys(title)
-            driver.find_element(By.ID, 'URL').send_keys(url)
-            driver.find_element(By.ID, 'DESCRIPTION').send_keys(desc)
-            driver.find_element(By.ID, 'OWNER_NAME').send_keys(name)
-            driver.find_element(By.ID, 'OWNER_EMAIL').send_keys(email)
 
-            for f in driver.find_elements(By.TAG_NAME, 'font'):
-                if '=' in f.text:
-                    expr = f.text.replace('x', '*').replace('=', '').strip()
-                    driver.find_element(By.ID, "DO_MATH").send_keys(str(eval(expr)))
+            slow_type(driver.find_element(By.ID, 'TITLE'), title)
+            slow_type(driver.find_element(By.ID, 'URL'), url)
+            slow_type(driver.find_element(By.ID, 'DESCRIPTION'), desc)
+            slow_type(driver.find_element(By.ID, 'OWNER_NAME'), name)
+            slow_type(driver.find_element(By.ID, 'OWNER_EMAIL'), email)
+
+            for font in driver.find_elements(By.TAG_NAME, 'font'):
+                if '=' in font.text:
+                    expr = font.text.replace('x', '*').replace('=', '')
+                    result = str(eval(expr))
+                    driver.find_element(By.ID, "DO_MATH").send_keys(result)
                     break
 
+            # ✅ Always include this line
             driver.find_element(By.XPATH, "//input[@id='AGREERULES']").click()
+
             driver.find_element(By.NAME, 'continue').click()
             time.sleep(2)
 
@@ -69,11 +72,8 @@ def run_bot(excel_path):
         except Exception as e:
             sh[f'F{i}'] = '❌ Failed'
 
+    wb.save(excel_path)
     driver.quit()
-    result_path = os.path.join(RESULT_FOLDER, f"result_{int(time.time())}.xlsx")
-    wb.save(result_path)
-    return result_path
-
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
